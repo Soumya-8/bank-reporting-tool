@@ -11,7 +11,7 @@ from modules.npa import classify_npa
 
 def run_app():
     st.title("Bank Financial Reporting Tool")
-    st.markdown("Automated P&L, Balance Sheet and Ratio Analysis for banks")
+    st.markdown("Automated P&L, Balance Sheet, Ratios, Charts, Variance and NPA Analysis")
 
     uploaded_file = st.file_uploader("Upload Trial Balance CSV", type="csv")
 
@@ -28,16 +28,16 @@ def run_app():
         col3.metric("Net Profit", f"Rs. {net_profit:,.0f}")
 
         st.subheader("Profit & Loss Statement")
-        st.dataframe(income[['gl_name','credit']].rename(
-            columns={'gl_name':'Income Head','credit':'Amount (Rs.)'}))
-        st.dataframe(expenses[['gl_name','debit']].rename(
-            columns={'gl_name':'Expense Head','debit':'Amount (Rs.)'}))
+        st.dataframe(income[['gl_name', 'credit']].rename(
+            columns={'gl_name': 'Income Head', 'credit': 'Amount (Rs.)'}))
+        st.dataframe(expenses[['gl_name', 'debit']].rename(
+            columns={'gl_name': 'Expense Head', 'debit': 'Amount (Rs.)'}))
 
         st.subheader("Balance Sheet")
-        st.dataframe(assets[['gl_name','debit']].rename(
-            columns={'gl_name':'Asset','debit':'Amount (Rs.)'}))
-        st.dataframe(liabilities[['gl_name','credit']].rename(
-            columns={'gl_name':'Liability / Capital','credit':'Amount (Rs.)'}))
+        st.dataframe(assets[['gl_name', 'debit']].rename(
+            columns={'gl_name': 'Asset', 'debit': 'Amount (Rs.)'}))
+        st.dataframe(liabilities[['gl_name', 'credit']].rename(
+            columns={'gl_name': 'Liability / Capital', 'credit': 'Amount (Rs.)'}))
 
         st.subheader("Key Financial Ratios")
         ratios = calculate_ratios(
@@ -59,6 +59,24 @@ def run_app():
             else:
                 st.success(insight)
 
+        st.subheader("Financial Charts")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            fig, ax = plt.subplots()
+            ax.bar(['Income', 'Expenses'], [total_income, total_expenses],
+                   color=['#1a3c5e', '#e74c3c'])
+            ax.set_title('Income vs Expenses')
+            ax.set_ylabel('Amount (Rs.)')
+            st.pyplot(fig)
+
+        with col2:
+            fig2, ax2 = plt.subplots()
+            ax2.pie(expenses['debit'], labels=expenses['gl_name'],
+                    autopct='%1.1f%%', startangle=90)
+            ax2.set_title('Expense Breakdown')
+            st.pyplot(fig2)
+
         st.subheader("Download Report")
         if st.button("Generate PDF Report"):
             pdf_path = generate_pdf(
@@ -72,41 +90,24 @@ def run_app():
             st.success("PDF generated successfully!")
 
         st.subheader("Variance Analysis (Month Comparison)")
-
+        st.markdown("Upload two months of trial balance to compare changes")
         file1 = st.file_uploader("Upload Month 1 CSV", type="csv", key="m1")
         file2 = st.file_uploader("Upload Month 2 CSV", type="csv", key="m2")
-
         if file1 and file2:
             df1 = load_trial_balance(file1)
             df2 = load_trial_balance(file2)
-
             variance_df = calculate_variance(df1, df2)
-
             st.dataframe(variance_df)
-        st.subheader("Financial Charts")
-
-# Bar chart
-        labels = ['Income', 'Expenses']
-        values = [total_income, total_expenses]
-
-        fig, ax = plt.subplots()
-        ax.bar(labels, values)
-        st.pyplot(fig)
-
-# Pie chart
-        fig2, ax2 = plt.subplots()
-        ax2.pie(expenses['debit'], labels=expenses['gl_name'], autopct='%1.1f%%')
-        st.pyplot(fig2)    
 
         st.subheader("NPA Classification")
-
+        st.markdown("Upload loan data CSV with columns: loan_id, borrower_name, loan_amount, days_overdue")
         loan_file = st.file_uploader("Upload Loan Data CSV", type="csv", key="loan")
-
         if loan_file:
             loans_df = pd.read_csv(loan_file)
             result = classify_npa(loans_df)
-
             st.dataframe(result)
-
-            npa_count = len(result[result['status'] == 'NPA'])
-            st.error(f"Total NPAs detected: {npa_count}")
+            npa_count = len(result[result['status'] != 'Standard'])
+            total_provision = result['provision_required'].sum()
+            col1, col2 = st.columns(2)
+            col1.metric("Total NPAs detected", npa_count)
+            col2.metric("Total Provision Required", f"Rs. {total_provision:,.0f}")

@@ -80,7 +80,7 @@ def run_app():
         st.subheader("Download Report")
         if st.button("Generate PDF Report"):
             pdf_path = generate_pdf(
-                assets, liabilities, income, expenses, net_profit)
+                assets, liabilities, income, expenses, net_profit, ratios)
             with open(pdf_path, "rb") as f:
                 st.download_button(
                     label="Click here to download PDF",

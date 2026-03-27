@@ -1,0 +1,23 @@
+gl_code,gl_name,debit,credit
+1001,Cash in Hand,500000,0
+1002,Cash at Bank - RBI,2000000,0
+1003,Cash at Bank - SBI,1500000,0
+2001,Loans and Advances - Personal,5000000,0
+2002,Loans and Advances - Business,8000000,0
+2003,Loans and Advances - Housing,12000000,0
+3001,Fixed Assets,3000000,0
+3002,Other Assets,500000,0
+4001,Share Capital,0,2000000
+4002,Reserves and Surplus,0,5000000
+4003,Deposits - Savings,0,8000000
+4004,Deposits - Fixed,0,12000000
+4005,Borrowings,0,3000000
+4006,Other Liabilities,0,500000
+5001,Interest Income - Loans,0,3000000
+5002,Interest Income - Investments,0,500000
+5003,Fee Income,0,200000
+6001,Interest Expense - Deposits,1500000,0
+6002,Salaries and Allowances,800000,0
+6003,Rent and Utilities,200000,0
+6004,Depreciation,150000,0
+6005,Other Operating Expenses,100000,0

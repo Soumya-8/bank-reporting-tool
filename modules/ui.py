@@ -1,11 +1,13 @@
 import streamlit as st
+import pandas as pd
 from modules.ingestion import load_trial_balance, categorise
 from modules.pl_engine import generate_pl
 from modules.balance_sheet import generate_balance_sheet
+from modules.ratios import calculate_ratios, interpret_ratios
 
 def run_app():
     st.title("Bank Financial Reporting Tool")
-    st.markdown("Automated P&L and Balance Sheet generator for banks")
+    st.markdown("Automated P&L, Balance Sheet and Ratio Analysis for banks")
 
     uploaded_file = st.file_uploader("Upload Trial Balance CSV", type="csv")
 
@@ -32,3 +34,23 @@ def run_app():
             columns={'gl_name':'Asset','debit':'Amount (Rs.)'}))
         st.dataframe(liabilities[['gl_name','credit']].rename(
             columns={'gl_name':'Liability / Capital','credit':'Amount (Rs.)'}))
+
+        st.subheader("Key Financial Ratios")
+        ratios = calculate_ratios(
+            total_income, total_expenses, net_profit, assets, liabilities)
+        insights = interpret_ratios(ratios)
+
+        col1, col2 = st.columns(2)
+        ratio_items = list(ratios.items())
+        for i, (name, value) in enumerate(ratio_items):
+            if i % 2 == 0:
+                col1.metric(name, f"{value}%")
+            else:
+                col2.metric(name, f"{value}%")
+
+        st.subheader("CA Insights")
+        for insight in insights:
+            if "not" in insight or "high" in insight or "exceeds" in insight or "low" in insight:
+                st.warning(insight)
+            else:
+                st.success(insight)

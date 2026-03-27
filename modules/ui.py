@@ -4,6 +4,7 @@ from modules.ingestion import load_trial_balance, categorise
 from modules.pl_engine import generate_pl
 from modules.balance_sheet import generate_balance_sheet
 from modules.ratios import calculate_ratios, interpret_ratios
+from modules.pdf_export import generate_pdf
 
 def run_app():
     st.title("Bank Financial Reporting Tool")
@@ -54,3 +55,15 @@ def run_app():
                 st.warning(insight)
             else:
                 st.success(insight)
+
+        st.subheader("Download Report")
+        if st.button("Generate PDF Report"):
+            pdf_path = generate_pdf(
+                assets, liabilities, income, expenses, net_profit)
+            with open(pdf_path, "rb") as f:
+                st.download_button(
+                    label="Click here to download PDF",
+                    data=f,
+                    file_name="bank_financial_report.pdf",
+                    mime="application/pdf")
+            st.success("PDF generated successfully!")

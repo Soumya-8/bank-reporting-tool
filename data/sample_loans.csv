@@ -1,0 +1,11 @@
+loan_id,borrower_name,loan_amount,days_overdue
+L001,Ramesh Kumar,500000,0
+L002,Sunita Sharma,300000,45
+L003,Vijay Patel,750000,95
+L004,Meena Devi,200000,185
+L005,Arjun Singh,1000000,370
+L006,Priya Nair,450000,0
+L007,Suresh Yadav,600000,120
+L008,Anita Gupta,250000,280
+L009,Rajesh Mehta,800000,30
+L010,Kavitha Reddy,350000,400

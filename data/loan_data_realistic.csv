@@ -1,0 +1,26 @@
+loan_id,borrower_name,loan_amount,days_overdue
+HL001,Ramesh Kumar Sharma,2500000,0
+HL002,Sunita Devi Patel,1800000,0
+HL003,Vijay Singh Rajput,3200000,95
+HL004,Meena Kumari Sahu,1500000,0
+HL005,Arjun Prasad Verma,2800000,185
+PL001,Priya Nair Menon,450000,0
+PL002,Suresh Yadav,380000,120
+PL003,Anita Gupta,280000,0
+PL004,Rajesh Mehta,520000,370
+PL005,Kavitha Reddy,410000,45
+BL001,Sharma Enterprises,1200000,0
+BL002,Patel Traders,850000,95
+BL003,Singh Construction,2200000,0
+BL004,Verma Industries,1800000,280
+BL005,Gupta Textiles,950000,0
+GL001,Ravi Kumar,180000,0
+GL002,Sita Devi,120000,30
+GL003,Mohan Lal,250000,400
+GL004,Geeta Bai,95000,0
+GL005,Hari Prasad,210000,150
+AL001,Farmer Cooperative Society,800000,0
+AL002,Krishi Vikas Group,1200000,60
+AL003,Grameen Udyog,650000,180
+AL004,Kisan Credit Group,950000,0
+AL005,Rural Finance Society,780000,90

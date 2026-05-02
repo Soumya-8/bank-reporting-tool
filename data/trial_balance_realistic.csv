@@ -1,0 +1,71 @@
+gl_code,gl_name,debit,credit
+1001,Cash in Hand,850000,0
+1002,Cash at Bank - RBI Current Account,5200000,0
+1003,Cash at Bank - SBI,3100000,0
+1004,Cash at Bank - PNB,1800000,0
+1005,Cash at Bank - BOB,900000,0
+2001,Loans - Housing,45000000,0
+2002,Loans - Personal,18000000,0
+2003,Loans - Business,32000000,0
+2004,Loans - Gold,8500000,0
+2005,Loans - Vehicle,12000000,0
+2006,Loans - Education,4500000,0
+2007,Loans - Agriculture,9000000,0
+2008,Loans - MSME,22000000,0
+2009,Overdraft Accounts,6500000,0
+2010,Bills Purchased and Discounted,3200000,0
+3001,Government Securities,25000000,0
+3002,Fixed Deposits with Banks,15000000,0
+3003,Shares and Debentures,5000000,0
+3004,Fixed Assets - Land and Building,18000000,0
+3005,Fixed Assets - Furniture,2500000,0
+3006,Fixed Assets - Computers,1800000,0
+3007,Fixed Assets - Vehicles,3200000,0
+3008,Interest Receivable,4500000,0
+3009,Other Assets,2800000,0
+3010,Deferred Tax Asset,1200000,0
+4001,Share Capital,0,15000000
+4002,Reserves and Surplus,0,28000000
+4003,Statutory Reserve,0,8500000
+4004,Capital Reserve,0,3200000
+4005,Deposits - Savings,0,85000000
+4006,Deposits - Current,0,32000000
+4007,Deposits - Fixed - Short Term,0,48000000
+4008,Deposits - Fixed - Long Term,0,62000000
+4009,Deposits - Recurring,0,18000000
+4010,Borrowings - RBI,0,12000000
+4011,Borrowings - NABARD,0,8000000
+4012,Borrowings - Other Banks,0,5000000
+4013,Interest Payable,0,3500000
+4014,Tax Payable,0,2800000
+4015,Other Liabilities,0,4200000
+5001,Interest Income - Housing Loans,0,5400000
+5002,Interest Income - Personal Loans,0,2160000
+5003,Interest Income - Business Loans,0,4480000
+5004,Interest Income - Gold Loans,0,1020000
+5005,Interest Income - Vehicle Loans,0,1440000
+5006,Interest Income - Investments,0,3000000
+5007,Processing Fee Income,0,850000
+5008,Commission Income,0,420000
+5009,Locker Rent Income,0,180000
+5010,Miscellaneous Income,0,320000
+6001,Interest Expense - Savings Deposits,0,0
+6002,Interest on Savings Deposits,3400000,0
+6003,Interest on Fixed Deposits,7200000,0
+6004,Interest on Recurring Deposits,1080000,0
+6005,Interest on Borrowings,1500000,0
+6006,Salaries and Allowances,4200000,0
+6007,PF and Gratuity,420000,0
+6008,Rent and Rates,480000,0
+6009,Electricity and Water,180000,0
+6010,Printing and Stationery,120000,0
+6011,Depreciation - Building,360000,0
+6012,Depreciation - Furniture,125000,0
+6013,Depreciation - Computers,360000,0
+6014,Depreciation - Vehicles,640000,0
+6015,Audit Fees,150000,0
+6016,Legal Expenses,80000,0
+6017,Advertisement,120000,0
+6018,Repairs and Maintenance,95000,0
+6019,Provision for NPA,800000,0
+6020,Other Operating Expenses,280000,0

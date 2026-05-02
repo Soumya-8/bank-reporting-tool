@@ -1,29 +1,39 @@
 import streamlit as st
+import yaml
+from yaml.loader import SafeLoader
+import streamlit_authenticator as stauth
 
-def check_password():
-    """Returns True if the user had the correct password."""
+def load_auth():
+    with open('credentials.yaml') as file:
+        config = yaml.load(file, Loader=SafeLoader)
 
-    def password_entered():
-        """Checks whether a password entered by the user is correct."""
-        if st.session_state["password"] == "admin123": # CHANGE THIS PASSWORD
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # don't store password
-        else:
-            st.session_state["password_correct"] = False
+    authenticator = stauth.Authenticate(
+        config['credentials'],
+        config['cookie']['name'],
+        config['cookie']['key'],
+        config['cookie']['expiry_days']
+    )
+    return authenticator, config
 
-    if "password_correct" not in st.session_state:
-        # First run, show input for password.
-        st.text_input(
-            "Enter Password to access BankReport AI", type="password", on_change=password_entered, key="password"
-        )
-        return False
-    elif not st.session_state["password_correct"]:
-        # Password incorrect, show input + error.
-        st.text_input(
-            "Enter Password to access BankReport AI", type="password", on_change=password_entered, key="password"
-        )
-        st.error("😕 Password incorrect")
-        return False
-    else:
-        # Password correct.
-        return True
+def render_login():
+    authenticator, config = load_auth()
+
+    name, authentication_status, username = authenticator.login(
+        location='main')
+
+    if authentication_status == False:
+        st.error("Incorrect username or password. Please try again.")
+        return None, None, None, None
+
+    if authentication_status == None:
+        st.markdown("""
+        <div style="text-align:center; margin-top: 2rem;">
+            <h2 style="color:#1a3c5e;">Welcome to VyaparScore</h2>
+            <p style="color:#5a7a9a;">Automated Financial Reporting for Banks</p>
+            <p style="color:#8a9bb0; font-size:0.85rem;">
+                Please enter your bank credentials to continue</p>
+        </div>
+        """, unsafe_allow_html=True)
+        return None, None, None, None
+
+    return authenticator, name, authentication_status, username

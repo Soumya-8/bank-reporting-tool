@@ -239,8 +239,21 @@ def run_app():
                 v_df = calculate_variance(
                     load_trial_balance(f1),
                     load_trial_balance(f2))
+
+                # Reset index to start from 1
+                v_df = v_df.reset_index(drop=True)
+                v_df.index = v_df.index + 1
+
+                # Format all number columns
+                number_cols = ['Debit M1', 'Debit M2', 'Debit Change',
+                               'Credit M1', 'Credit M2', 'Credit Change']
+                for col in number_cols:
+                    if col in v_df.columns:
+                        v_df[col] = v_df[col].apply(
+                            lambda x: f"Rs. {x:,.2f}"
+                            if isinstance(x, (int, float)) else x)
+
                 styled_variance = v_df.style\
-                    .apply(highlight_variance, axis=1)\
                     .set_table_styles([{
                         'selector': 'thead th',
                         'props': [
@@ -249,9 +262,14 @@ def run_app():
                             ('font-weight', 'bold'),
                             ('font-size', '13px')
                         ]
-                    }])
+                    }])\
+                    .set_properties(**{
+                        'background-color': '#f0f4f8',
+                        'color': '#1a2b3c',
+                        'font-size': '13px'
+                    })
                 st.dataframe(styled_variance, use_container_width=True)
-                st.info("Green = increased. Red = decreased.")
+                st.info("Upload same bank's data for two months to see changes.")
 
         with st.expander("NPA Classification (RBI Rules)"):
             loan_file = st.file_uploader(
@@ -259,6 +277,15 @@ def run_app():
             if loan_file:
                 l_df = pd.read_csv(loan_file)
                 npa_res = classify_npa(l_df)
+                npa_res = npa_res.reset_index(drop=True)
+                npa_res.index = npa_res.index + 1
+
+                # Format numbers
+                npa_res['loan_amount'] = npa_res['loan_amount'].apply(
+                    lambda x: f"Rs. {x:,.2f}")
+                npa_res['provision_required'] = npa_res['provision_required'].apply(
+                    lambda x: f"Rs. {x:,.2f}")
+
                 styled_npa = npa_res.style\
                     .apply(highlight_npa, axis=1)\
                     .set_table_styles([{
@@ -274,15 +301,17 @@ def run_app():
                 col1, col2 = st.columns(2)
                 npa_count = len(
                     npa_res[npa_res['status'] != 'Standard'])
-                total_provision = npa_res['provision_required'].sum()
                 col1.metric("Total NPAs Detected", npa_count)
                 col2.metric("Total Provision Required",
-                            f"Rs.{total_provision:,.2f}")
+                            f"Rs. {l_df['loan_amount'].sum():,.2f}")
                 st.markdown("**NPA Summary by Category**")
-                summary = npa_res.groupby('status').agg(
+                summary = l_df.copy()
+                summary['status'] = classify_npa(l_df)['status']
+                summary['provision'] = classify_npa(l_df)['provision_required']
+                summary = summary.groupby('status').agg(
                     Count=('loan_id', 'count'),
                     Total_Amount=('loan_amount', 'sum'),
-                    Total_Provision=('provision_required', 'sum')
+                    Total_Provision=('provision', 'sum')
                 ).reset_index()
                 st.dataframe(
                     styled_df(summary, {

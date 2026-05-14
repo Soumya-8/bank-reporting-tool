@@ -9,9 +9,18 @@ from modules.pdf_export import generate_pdf
 from modules.variance import calculate_variance
 from modules.npa import classify_npa
 
-
-def styled_df(df, col_rename):
-    return df.rename(columns=col_rename).style.set_properties(**{
+ddef styled_df(df, col_rename):
+    df = df.reset_index(drop=True)
+    df.index = df.index + 1
+    df = df.rename(columns=col_rename)
+    
+    # Format amount columns with Indian number format
+    for col in df.columns:
+        if 'Amount' in col or 'Credit' in col or 'Debit' in col:
+            df[col] = df[col].apply(
+                lambda x: f"₹ {x:,.2f}" if isinstance(x, (int, float)) else x)
+    
+    return df.style.set_properties(**{
         'background-color': '#f0f4f8',
         'color': '#1a2b3c',
         'border': '1px solid #c0cfe0',
@@ -48,6 +57,9 @@ def highlight_variance(row):
     else:
         return ['background-color: #f0f4f8; color: #1a2b3c'] * len(row)
 
+def get_bank_session_key(key):
+    username = st.session_state.get('username', 'unknown')
+    return f"{username}_{key}"
 
 def run_app():
     # Header
@@ -69,15 +81,28 @@ def run_app():
 
     # 1. Upload
     st.subheader("📁 1. Upload Trial Balance")
-    uploaded_file = st.file_uploader("Choose Trial Balance CSV", type="csv")
+    
+    # Each bank gets its own unique file uploader key
+    upload_key = get_bank_session_key('trial_balance')
+    uploaded_file = st.file_uploader(
+        "Choose Trial Balance CSV or Excel file",
+        type=["csv", "xlsx", "xls"],
+        key=upload_key)
 
-    if uploaded_file:
+    if uploaded_file is not None:
+        # Store data in bank-specific session state
+        bank_key = get_bank_session_key('data')
+        
         df = load_trial_balance(uploaded_file)
         assets, liabilities, income, expenses = categorise(df)
         total_income, total_expenses, net_profit = generate_pl(
             income, expenses)
 
-        st.success(f"Successfully loaded {len(df)} GL entries.")
+        # Clear uploaded file from memory after processing
+        uploaded_file = None
+
+        st.success(
+            f"Successfully loaded {len(df)} GL entries.")
 
         # 2. Key Metrics
         st.subheader("📈 2. Financial Summary")

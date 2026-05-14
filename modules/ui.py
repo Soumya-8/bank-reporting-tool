@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,7 +10,7 @@ from modules.pdf_export import generate_pdf
 from modules.variance import calculate_variance
 from modules.npa import classify_npa
 
-ddef styled_df(df, col_rename):
+def styled_df(df, col_rename):
     df = df.reset_index(drop=True)
     df.index = df.index + 1
     df = df.rename(columns=col_rename)
@@ -18,7 +19,7 @@ ddef styled_df(df, col_rename):
     for col in df.columns:
         if 'Amount' in col or 'Credit' in col or 'Debit' in col:
             df[col] = df[col].apply(
-                lambda x: f"₹ {x:,.2f}" if isinstance(x, (int, float)) else x)
+                lambda x: f"Rs. {x:,.2f}" if isinstance(x, (int, float)) else x)
     
     return df.style.set_properties(**{
         'background-color': '#f0f4f8',
@@ -107,9 +108,9 @@ def run_app():
         # 2. Key Metrics
         st.subheader("📈 2. Financial Summary")
         m1, m2, m3 = st.columns(3)
-        m1.metric("Total Income", f"₹{total_income:,.2f}")
-        m2.metric("Total Expenses", f"₹{total_expenses:,.2f}")
-        m3.metric("Net Profit", f"₹{net_profit:,.2f}")
+        m1.metric("Total Income", f"Rs.{total_income:,.2f}")
+        m2.metric("Total Expenses", f"Rs.{total_expenses:,.2f}")
+        m3.metric("Net Profit", f"Rs.{net_profit:,.2f}")
 
         # 3. Statements
         st.markdown("---")
@@ -276,7 +277,7 @@ def run_app():
                 total_provision = npa_res['provision_required'].sum()
                 col1.metric("Total NPAs Detected", npa_count)
                 col2.metric("Total Provision Required",
-                            f"₹{total_provision:,.2f}")
+                            f"Rs.{total_provision:,.2f}")
                 st.markdown("**NPA Summary by Category**")
                 summary = npa_res.groupby('status').agg(
                     Count=('loan_id', 'count'),

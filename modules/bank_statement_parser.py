@@ -1,6 +1,6 @@
 import pandas as pd
 import re
-
+import io
 
 # Transaction category keywords
 CATEGORIES = {
@@ -35,62 +35,192 @@ def categorise_transaction(narration):
     return 'Others'
 
 
+def clean_amount(val):
+    if pd.isna(val):
+        return 0.0
+    val_str = str(val).strip()
+    val_str = re.sub(r'[,\s₹Rs]', '', val_str)
+    val_str = val_str.replace('(', '-').replace(')', '')
+    try:
+        return float(val_str)
+    except Exception:
+        return 0.0
+
+
+def find_column(columns, keywords):
+    columns_lower = [c.lower().strip() for c in columns]
+    for keyword in keywords:
+        for i, col in enumerate(columns_lower):
+            if keyword in col:
+                return columns[i]
+    return None
+
+
+def parse_pdf_statement(filepath):
+    try:
+        import pdfplumber
+        all_rows = []
+        with pdfplumber.open(filepath) as pdf:
+            for page in pdf.pages:
+                tables = page.extract_tables()
+                for table in tables:
+                    if table and len(table) > 1:
+                        for row in table:
+                            if row and any(cell for cell in row):
+                                all_rows.append(row)
+
+        if not all_rows:
+            return None
+
+        # Use first row as header
+        headers = [str(h).strip() if h else f'col_{i}'
+                   for i, h in enumerate(all_rows[0])]
+        data = all_rows[1:]
+        df = pd.DataFrame(data, columns=headers)
+        return df
+
+    except Exception as e:
+        raise ValueError(f"Could not read PDF: {str(e)}")
+
+
 def load_bank_statement(filepath):
     if hasattr(filepath, 'name'):
         filename = filepath.name
     else:
         filename = str(filepath)
 
-    if filename.endswith('.xlsx') or filename.endswith('.xls'):
-        df = pd.read_excel(filepath)
+    filename_lower = filename.lower()
+
+    # Load based on file type
+    if filename_lower.endswith('.pdf'):
+        df = parse_pdf_statement(filepath)
+        if df is None:
+            raise ValueError(
+                "Could not extract tables from PDF. "
+                "Please try converting to Excel or CSV.")
+    elif filename_lower.endswith('.xlsx') or filename_lower.endswith('.xls'):
+        # Try different header rows
+        df = None
+        for header_row in [0, 1, 2, 3, 4]:
+            try:
+                temp = pd.read_excel(filepath, header=header_row)
+                # Check if this looks like a bank statement
+                cols_lower = [str(c).lower() for c in temp.columns]
+                has_date = any(x in ' '.join(cols_lower)
+                               for x in ['date', 'dt', 'txn'])
+                has_amount = any(x in ' '.join(cols_lower)
+                                 for x in ['debit', 'credit', 'amount',
+                                           'withdrawal', 'deposit', 'dr',
+                                           'cr'])
+                if has_date and has_amount:
+                    df = temp
+                    break
+            except Exception:
+                continue
+        if df is None:
+            df = pd.read_excel(filepath)
     else:
         df = pd.read_csv(filepath)
 
-    # Normalise column names
-    df.columns = df.columns.str.strip().str.lower()
+    # Clean column names
+    df.columns = [str(c).strip() for c in df.columns]
 
-    # Try to find required columns flexibly
-    col_map = {}
-    for col in df.columns:
-        if any(x in col for x in ['date', 'dt', 'txn date']):
-            col_map['date'] = col
-        elif any(x in col for x in ['narration', 'description',
-                                     'particulars', 'details', 'remarks']):
-            col_map['narration'] = col
-        elif any(x in col for x in ['debit', 'dr', 'withdrawal',
-                                     'withdrawl']):
-            col_map['debit'] = col
-        elif any(x in col for x in ['credit', 'cr', 'deposit']):
-            col_map['credit'] = col
-        elif any(x in col for x in ['balance', 'bal', 'closing']):
-            col_map['balance'] = col
+    # Remove completely empty rows
+    df = df.dropna(how='all')
 
-    # Rename to standard names
-    df = df.rename(columns={v: k for k, v in col_map.items()})
+    # Find columns flexibly
+    cols = list(df.columns)
 
-    # Convert to numeric
-    for col in ['debit', 'credit', 'balance']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(
-                df[col].astype(str).str.replace(',', ''),
-                errors='coerce').fillna(0)
+    date_col = find_column(cols,
+        ['date', 'dt', 'txn date', 'value date', 'trans date'])
+    narration_col = find_column(cols,
+        ['narration', 'description', 'particulars', 'details',
+         'remarks', 'transaction', 'detail', 'ref'])
+    debit_col = find_column(cols,
+        ['debit', 'dr', 'withdrawal', 'withdrawl', 'debit amount',
+         'dr amount', 'withdrawal amount'])
+    credit_col = find_column(cols,
+        ['credit', 'cr', 'deposit', 'credit amount', 'cr amount',
+         'deposit amount'])
+    balance_col = find_column(cols,
+        ['balance', 'bal', 'closing', 'closing balance', 'running'])
+
+    # If debit/credit not found separately, look for single amount column
+    amount_col = None
+    if not debit_col and not credit_col:
+        amount_col = find_column(cols,
+            ['amount', 'amt', 'transaction amount'])
+
+    # Build standardised dataframe
+    result = pd.DataFrame()
+
+    if date_col:
+        result['date'] = pd.to_datetime(
+            df[date_col], errors='coerce', dayfirst=True)
+    else:
+        result['date'] = pd.NaT
+
+    if narration_col:
+        result['narration'] = df[narration_col].astype(str)
+    else:
+        # Try to find any text column
+        for col in cols:
+            if df[col].dtype == object and col not in [date_col]:
+                result['narration'] = df[col].astype(str)
+                break
+        else:
+            result['narration'] = 'Unknown'
+
+    if debit_col:
+        result['debit'] = df[debit_col].apply(clean_amount)
+    elif amount_col:
+        result['debit'] = df[amount_col].apply(
+            lambda x: clean_amount(x) if clean_amount(x) < 0 else 0)
+    else:
+        result['debit'] = 0.0
+
+    if credit_col:
+        result['credit'] = df[credit_col].apply(clean_amount)
+    elif amount_col:
+        result['credit'] = df[amount_col].apply(
+            lambda x: clean_amount(x) if clean_amount(x) > 0 else 0)
+    else:
+        result['credit'] = 0.0
+
+    if balance_col:
+        result['balance'] = df[balance_col].apply(clean_amount)
+    else:
+        result['balance'] = 0.0
+
+    # Remove rows where both debit and credit are 0
+    result = result[
+        (result['debit'] != 0) | (result['credit'] != 0)].copy()
 
     # Add category
-    if 'narration' in df.columns:
-        df['category'] = df['narration'].apply(categorise_transaction)
+    result['category'] = result['narration'].apply(
+        categorise_transaction)
 
-    return df
+    result = result.reset_index(drop=True)
+    return result
 
 
 def analyse_bank_statement(df):
+    # Safety check
+    if 'credit' not in df.columns:
+        df['credit'] = 0.0
+    if 'debit' not in df.columns:
+        df['debit'] = 0.0
+    if 'balance' not in df.columns:
+        df['balance'] = 0.0
+    if 'category' not in df.columns:
+        df['category'] = 'Others'
+
     total_credits = df['credit'].sum()
     total_debits = df['debit'].sum()
     net_flow = total_credits - total_debits
 
     # Monthly summary
-    if 'date' in df.columns:
-        df['date'] = pd.to_datetime(df['date'], errors='coerce',
-                                     dayfirst=True)
+    if 'date' in df.columns and df['date'].notna().any():
         df['month'] = df['date'].dt.to_period('M').astype(str)
         monthly = df.groupby('month').agg(
             Total_Credits=('credit', 'sum'),
@@ -98,8 +228,10 @@ def analyse_bank_statement(df):
         ).reset_index()
         monthly['Net_Flow'] = (monthly['Total_Credits'] -
                                monthly['Total_Debits'])
+        num_months = max(1, len(monthly))
     else:
         monthly = pd.DataFrame()
+        num_months = 1
 
     # Category wise spending
     category_summary = df[df['debit'] > 0].groupby('category').agg(
@@ -115,7 +247,8 @@ def analyse_bank_statement(df):
 
     # Salary detection
     salary_txns = df[df['category'] == 'Salary']
-    avg_salary = salary_txns['credit'].mean() if len(salary_txns) > 0 else 0
+    avg_salary = (salary_txns['credit'].mean()
+                  if len(salary_txns) > 0 else 0)
     salary_months = len(salary_txns)
 
     # EMI detection
@@ -130,17 +263,13 @@ def analyse_bank_statement(df):
                     if total_debits > 0 else 0)
 
     # Balance stats
-    if 'balance' in df.columns:
-        avg_balance = df['balance'].mean()
-        min_balance = df['balance'].min()
-        max_balance = df['balance'].max()
-    else:
-        avg_balance = min_balance = max_balance = 0
+    avg_balance = df['balance'].mean() if df['balance'].sum() > 0 else 0
+    min_balance = df['balance'].min() if df['balance'].sum() > 0 else 0
+    max_balance = df['balance'].max() if df['balance'].sum() > 0 else 0
 
-    # DSCR (Debt Service Coverage Ratio)
-    monthly_income = avg_salary if avg_salary > 0 else (
-        total_credits / max(1, len(
-            df['month'].unique()) if 'month' in df.columns else 1))
+    # Monthly income estimate
+    monthly_income = (avg_salary if avg_salary > 0
+                      else total_credits / num_months)
     dscr = (monthly_income / avg_emi) if avg_emi > 0 else 0
 
     # Red flags
@@ -152,9 +281,13 @@ def analyse_bank_statement(df):
         red_flags.append("Account went into negative balance")
     if dscr < 1.5 and avg_emi > 0:
         red_flags.append(
-            f"Low DSCR of {dscr:.2f} — loan repayment capacity is weak")
-    if salary_months < 3:
-        red_flags.append("Less than 3 months of salary credits detected")
+            f"Low DSCR of {dscr:.2f} — repayment capacity is weak")
+    if salary_months < 3 and avg_salary > 0:
+        red_flags.append(
+            "Less than 3 months of salary credits detected")
+    if total_credits == 0:
+        red_flags.append(
+            "No credit transactions detected — check file format")
 
     summary = {
         'total_credits': total_credits,

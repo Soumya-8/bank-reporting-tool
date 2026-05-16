@@ -273,7 +273,7 @@ def run_app():
 
         with st.expander("NPA Classification (RBI Rules)"):
             loan_file = st.file_uploader(
-                "Upload Loan Data CSV", type="csv", key="npa_loan")
+                "Upload Loan Data CSV", type=["csv","xlsx","xls"], key="npa_loan")
             if loan_file:
                 l_df = pd.read_csv(loan_file)
                 npa_res = classify_npa(l_df)
@@ -330,3 +330,135 @@ def run_app():
             Built for cooperative and urban banks in India
         </div>
         """, unsafe_allow_html=True)
+        # Bank Statement Analysis
+        st.markdown("---")
+        st.subheader("7. Bank Statement Analysis")
+        st.markdown(
+            "Upload borrower's bank statement to auto-generate "
+            "financial summary and credit score")
+
+        bs_file = st.file_uploader(
+            "Upload Bank Statement CSV or Excel",
+            type=["csv", "xlsx", "xls"],
+            key="bank_stmt")
+
+        if bs_file:
+            from modules.bank_statement_parser import (
+                load_bank_statement, analyse_bank_statement)
+            from modules.credit_score import calculate_credit_score
+
+            stmt_df = load_bank_statement(bs_file)
+            summary, monthly, cat_summary, credit_summary = \
+                analyse_bank_statement(stmt_df)
+            score, rating, color, recommendation, breakdown = \
+                calculate_credit_score(summary)
+
+            st.success(
+                f"Statement loaded — {len(stmt_df)} transactions found.")
+
+            # Key metrics
+            st.markdown("**Financial Summary**")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Total Credits",
+                      f"Rs. {summary['total_credits']:,.0f}")
+            c2.metric("Total Debits",
+                      f"Rs. {summary['total_debits']:,.0f}")
+            c3.metric("Avg Monthly Salary",
+                      f"Rs. {summary['avg_monthly_salary']:,.0f}")
+            c4.metric("Avg EMI",
+                      f"Rs. {summary['avg_monthly_emi']:,.0f}")
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("DSCR", f"{summary['dscr']:.2f}")
+            c2.metric("Avg Balance",
+                      f"Rs. {summary['avg_balance']:,.0f}")
+            c3.metric("Min Balance",
+                      f"Rs. {summary['min_balance']:,.0f}")
+            c4.metric("Cash Withdrawal %",
+                      f"{summary['cash_withdrawal_percent']:.1f}%")
+
+            # Credit Score
+            st.markdown("**Credit Score**")
+            score_color = {
+                'green': '#1a7a4a',
+                'blue': '#1a3c5e',
+                'orange': '#e08c00',
+                'red': '#c0392b',
+                'darkred': '#7a0000'
+            }.get(color, '#1a3c5e')
+
+            st.markdown(f"""
+            <div style="background:white; border:2px solid {score_color};
+                        border-radius:12px; padding:1.5rem;
+                        text-align:center; margin:1rem 0;">
+                <h1 style="color:{score_color}; font-size:3rem;
+                           margin:0;">{score}/100</h1>
+                <h2 style="color:{score_color}; margin:0.5rem 0;">
+                    {rating}</h2>
+                <p style="color:#5a7a9a; margin:0;">{recommendation}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Score breakdown
+            st.markdown("**Score Breakdown**")
+            for factor, data in breakdown.items():
+                pct = int(data['score'] / data['max'] * 100)
+                st.markdown(
+                    f"**{factor}:** {data['score']}/{data['max']} "
+                    f"— {data['detail']}")
+                st.progress(pct / 100)
+
+            # Red flags
+            if summary['red_flags']:
+                st.markdown("**Red Flags Detected**")
+                for flag in summary['red_flags']:
+                    st.error(f"⚠️ {flag}")
+            else:
+                st.success(
+                    "No red flags detected in this bank statement.")
+
+            # Transaction categories
+            st.markdown("**Spending Categories**")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("*Debits by Category*")
+                st.dataframe(
+                    styled_df(cat_summary,
+                              {'category': 'Category',
+                               'Total_Spent': 'Amount (Rs.)',
+                               'Transaction_Count': 'Transactions'}),
+                    use_container_width=True)
+            with col2:
+                st.markdown("*Credits by Category*")
+                st.dataframe(
+                    styled_df(credit_summary,
+                              {'category': 'Category',
+                               'Total_Received': 'Amount (Rs.)',
+                               'Transaction_Count': 'Transactions'}),
+                    use_container_width=True)
+
+            # Monthly trend
+            if not monthly.empty:
+                st.markdown("**Monthly Cash Flow Trend**")
+                st.dataframe(
+                    styled_df(monthly,
+                              {'month': 'Month',
+                               'Total_Credits': 'Credits (Rs.)',
+                               'Total_Debits': 'Debits (Rs.)',
+                               'Net_Flow': 'Net Flow (Rs.)'}),
+                    use_container_width=True)
+
+            # Full transaction table
+            with st.expander("View All Transactions"):
+                st.dataframe(
+                    styled_df(
+                        stmt_df[['date', 'narration',
+                                 'debit', 'credit',
+                                 'balance', 'category']],
+                        {'date': 'Date',
+                         'narration': 'Narration',
+                         'debit': 'Debit (Rs.)',
+                         'credit': 'Credit (Rs.)',
+                         'balance': 'Balance (Rs.)',
+                         'category': 'Category'}),
+                    use_container_width=True)
